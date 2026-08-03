@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Simple Animation App</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background: #16213e;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-right: auto;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #0f3460;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    button, select, input[type="color"], input[type="range"] {
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      background: #e94560;
+      color: white;
+      font-weight: 500;
+    }
+
+    button:hover, button:active {
+      background: #ff6b81;
+    }
+
+    button.active {
+      background: #00b894;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    input[type="color"] {
+      width: 36px;
+      height: 32px;
+      padding: 2px;
+      background: #0f3460;
+    }
+
+    input[type="range"] {
+      width: 80px;
+      background: transparent;
+      padding: 0;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #0f0f1a;
+      position: relative;
+      min-height: 0;
+      padding: 10px;
+    }
+
+    #mainCanvas {
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      max-width: 100%;
+      max-height: 100%;
+      touch-action: none;
+    }
+
+    .timeline-section {
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+      padding: 8px 10px;
+    }
+
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .frames-container {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: thin;
+    }
+
+    .frame-thumb {
+      width: 64px;
+      height: 48px;
+      background: #0f3460;
+      border: 2px solid #0f3460;
+      border-radius: 6px;
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .frame-thumb.active {
+      border-color: #e94560;
+    }
+
+    .frame-thumb canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .frame-thumb .frame-num {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 0.65rem;
+      background: rgba(0,0,0,0.6);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .status {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-left: auto;
+    }
+
+    /* Small screens */
+    @media (max-width: 500px) {
+      header {
+        padding: 8px;
+      }
+      h1 {
+        font-size: 0.95rem;
+      }
+      button, select {
+        padding: 5px 8px;
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Animation App</h1>
+
+    <div class="tool-group">
+      <button id="brushBtn" class="active">Brush</button>
+      <button id="eraserBtn">Eraser</button>
+    </div>
+
+    <div class="tool-group">
+      <input type="color" id="colorPicker" value="#000000" title="Color" />
+      <label style="font-size:0.8rem">Size</label>
+      <input type="range" id="brushSize" min="1" max="40" value="6" />
+    </div>
+
+    <div class="tool-group">
+      <button id="clearBtn">Clear</button>
+      <button id="onionBtn">Onion: Off</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="canvas-area">
+      <canvas id="mainCanvas" width="480" height="360"></canvas>
+    </div>
+
+    <div class="timeline-section">
+      <div class="timeline-controls">
+        <button id="playBtn">▶ Play</button>
+        <button id="loopBtn" class="active">Loop: On</button>
+        <label style="font-size:0.8rem">Speed</label>
+        <input type="range" id="fpsSlider" min="1" max="24" value="8" style="width:70px" />
+        <span id="fpsLabel" style="font-size:0.8rem">8 fps</span>
+
+        <button id="addFrameBtn">+ Frame</button>
+        <button id="deleteFrameBtn">Delete</button>
+        <button id="duplicateFrameBtn">Duplicate</button>
+
+        <button id="saveBtn">Save</button>
+        <button id="loadBtn">Load</button>
+
+        <span class="status" id="statusText">Frame 1 / 1</span>
+      </div>
+
+      <div class="frames-container" id="framesContainer"></div>
+    </div>
+  </div>
+
+  <script>
+    // ======================
+    //  SIMPLE ANIMATION APP
+    //  Beginner-friendly single file
+    // ======================
+
+    // ---- Settings ----
+    const CANVAS_W = 480;
+    const CANVAS_H = 360;
+
+    // ---- State ----
+    let frames = [];          // Array of ImageData (one per frame)
+    let currentFrame = 0;
+    let tool = "brush";       // "brush" or "eraser"
+    let color = "#000000";
+    let brushSize = 6;
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let onionSkin = false;
+    let isPlaying = false;
+    let loop = true;
+    let fps = 8;
+    let playInterval = null;
+
+    // ---- DOM Elements ----
+    const canvas = document.getElementById("mainCanvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const framesContainer = document.getElementById("framesContainer");
+    const statusText = document.getElementById("statusText");
+    const fpsLabel = document.getElementById("fpsLabel");
+
+    // ---- Initialize ----
+    function init() {
+      // Create first blank frame
+      createBlankFrame();
+      updateUI();
+      drawCurrentFrame();
+
+      // Event listeners
+      setupDrawingEvents();
+      setupButtons();
+    }
+
+    // ---- Frame Management ----
+    function createBlankFrame() {
+      // Create a white blank ImageData
+      const blank = ctx.createImageData(CANVAS_W, CANVAS_H);
+      // Fill with white
+      for (let i = 0; i < blank.data.length; i += 4) {
+        blank.data[i] = 255;     // R
+        blank.data[i + 1] = 255; // G
+        blank.data[i + 2] = 255; // B
+        blank.data[i + 3] = 255; // A
+      }
+      frames.push(blank);
+    }
+
+    function addFrame() {
+      // Save current drawing first
+      saveCurrentToFrame();
+      createBlankFrame();
+      currentFrame = frames.length - 1;
+      updateUI();
+      drawCurrentFrame();
+    }
+
+    function deleteFrame() {
+      if (frames.length <= 1) {
+        alert("You need at least one frame!");
+        return;
+      }
+      frames.splice(currentFrame, 1);
+      if (currentFrame >= frames.length) {
+        currentFrame = frames.length - 1;
+      }
+      updateUI();
+      drawCurrentFrame();
+    }
+
+    function duplicateFrame() {
+      saveCurrentToFrame();
+      // Copy the current ImageData
+      const copy = new ImageData(
+        new Uint8ClampedArray(frames[currentFrame].data),
+        CANVAS_W,
+        CANVAS_H
+      );
+      frames.splice(currentFrame + 1, 0, copy);
+      currentFrame++;
+      updateUI();
+      drawCurrentFrame();
+    }
+
+    function selectFrame(index) {
+      if (index === currentFrame) return;
+      saveCurrentToFrame();
+      currentFrame = index;
+      updateUI();
+      drawCurrentFrame();
+    }
+
+    function saveCurrentToFrame() {
+      // Store the current canvas pixels into the frames array
+      frames[currentFrame] = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // ---- Drawing ----
+    function drawCurrentFrame() {
+      // Clear and put the current frame
+      ctx.putImageData(frames[currentFrame], 0, 0);
+
+      // Onion skinning (show previous frame faintly)
+      if (onionSkin && currentFrame > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        ctx.putImageData(frames[currentFrame - 1], 0, 0);
+        // We need to blend properly - simpler way: draw on a temp approach
+        // For simplicity we redraw current on top
+        ctx.globalAlpha = 1;
+        ctx.putImageData(frames[currentFrame], 0, 0);
+        // Better onion: use a separate offscreen approach, but this is ok for starter
+        ctx.restore();
+      }
+
+      // Better onion skin implementation
+      if (onionSkin) {
+        // Redraw everything cleanly
+        ctx.putImageData(frames[currentFrame], 0, 0);
+
+        if (currentFrame > 0) {
+          // Draw previous frame with low opacity using a temporary canvas
+          const temp = document.createElement("canvas");
+          temp.width = CANVAS_W;
+          temp.height = CANVAS_H;
+          const tctx = temp.getContext("2d");
+          tctx.putImageData(frames[currentFrame - 1], 0, 0);
+
+          ctx.save();
+          ctx.globalAlpha = 0.3;
+          ctx.drawImage(temp, 0, 0);
+          ctx.restore();
+        }
+        if (currentFrame < frames.length - 1) {
+          const temp = document.createElement("canvas");
+          temp.width = CANVAS_W;
+          temp.height = CANVAS_H;
+          const tctx = temp.getContext("2d");
+          tctx.putImageData(frames[currentFrame + 1], 0, 0);
+
+          ctx.save();
+          ctx.globalAlpha = 0.15;
+          ctx.drawImage(temp, 0, 0);
+          ctx.restore();
+        }
+      }
+    }
+
+    function setupDrawingEvents() {
+      // Mouse events
+      canvas.addEventListener("mousedown", startDraw);
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("mouseup", endDraw);
+      canvas.addEventListener("mouseleave", endDraw);
+
+      // Touch events (important for mobile / Kodex)
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        lastX = (touch.clientX - rect.left) * scaleX;
+        lastY = (touch.clientY - rect.top) * scaleY;
+        isDrawing = true;
+      }, { passive: false });
+
+      canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (!isDrawing) return;
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        paint(lastX, lastY, x, y);
+        lastX = x;
+        lastY = y;
+      }, { passive: false });
+
+      canvas.addEventListener("touchend", endDraw);
+      canvas.addEventListener("touchcancel", endDraw);
+    }
+
+    function startDraw(e) {
+      isDrawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      paint(lastX, lastY, pos.x, pos.y);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function endDraw() {
+      isDrawing = false;
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function paint(x1, y1, x2, y2) {
+      ctx.beginPath();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = brushSize;
+
+      if (tool === "brush") {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = color;
+      } else {
+        // Eraser
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      }
+
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // Also draw a dot for single clicks
+      ctx.beginPath();
+      ctx.arc(x2, y2, brushSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = tool === "brush" ? color : "rgba(0,0,0,1)";
+      if (tool === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+      }
+      ctx.fill();
+    }
+
+    // ---- UI Updates ----
+    function updateUI() {
+      // Status
+      statusText.textContent = `Frame ${currentFrame + 1} / ${frames.length}`;
+
+      // Rebuild timeline thumbnails
+      framesContainer.innerHTML = "";
+      frames.forEach((frameData, i) => {
+        const thumb = document.createElement("div");
+        thumb.className = "frame-thumb" + (i === currentFrame ? " active" : "");
+        thumb.onclick = () => selectFrame(i);
+
+        const thumbCanvas = document.createElement("canvas");
+        thumbCanvas.width = 64;
+        thumbCanvas.height = 48;
+        const tctx = thumbCanvas.getContext("2d");
+        // Scale down the frame
+        const temp = document.createElement("canvas");
+        temp.width = CANVAS_W;
+        temp.height = CANVAS_H;
+        temp.getContext("2d").putImageData(frameData, 0, 0);
+        tctx.drawImage(temp, 0, 0, 64, 48);
+
+        const num = document.createElement("div");
+        num.className = "frame-num";
+        num.textContent = i + 1;
+
+        thumb.appendChild(thumbCanvas);
+        thumb.appendChild(num);
+        framesContainer.appendChild(thumb);
+      });
+
+      // Scroll active frame into view
+      const active = framesContainer.querySelector(".active");
+      if (active) active.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+
+    // ---- Playback ----
+    function togglePlay() {
+      if (isPlaying) {
+        stopPlay();
+      } else {
+        startPlay();
+      }
+    }
+
+    function startPlay() {
+      saveCurrentToFrame();
+      isPlaying = true;
+      document.getElementById("playBtn").textContent = "⏸ Pause";
+      playInterval = setInterval(() => {
+        currentFrame++;
+        if (currentFrame >= frames.length) {
+          if (loop) {
+            currentFrame = 0;
+          } else {
+            currentFrame = frames.length - 1;
+            stopPlay();
+            return;
+          }
+        }
+        drawCurrentFrame();
+        updateUI();
+      }, 1000 / fps);
+    }
+
+    function stopPlay() {
+      isPlaying = false;
+      document.getElementById("playBtn").textContent = "▶ Play";
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+      }
+    }
+
+    // ---- Buttons ----
+    function setupButtons() {
+      document.getElementById("brushBtn").onclick = () => {
+        tool = "brush";
+        document.getElementById("brushBtn").classList.add("active");
+        document.getElementById("eraserBtn").classList.remove("active");
+      };
+
+      document.getElementById("eraserBtn").onclick = () => {
+        tool = "eraser";
+        document.getElementById("eraserBtn").classList.add("active");
+        document.getElementById("brushBtn").classList.remove("active");
+      };
+
+      document.getElementById("colorPicker").oninput = (e) => {
+        color = e.target.value;
+      };
+
+      document.getElementById("brushSize").oninput = (e) => {
+        brushSize = parseInt(e.target.value);
+      };
+
+      document.getElementById("clearBtn").onclick = () => {
+        if (confirm("Clear this frame?")) {
+          createBlankFrameData();
+          frames[currentFrame] = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+          // Actually fill white
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+          frames[currentFrame] = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+          drawCurrentFrame();
+          updateUI();
+        }
+      };
+
+      document.getElementById("onionBtn").onclick = () => {
+        onionSkin = !onionSkin;
+        document.getElementById("onionBtn").textContent = onionSkin ? "Onion: On" : "Onion: Off";
+        document.getElementById("onionBtn").classList.toggle("active", onionSkin);
+        drawCurrentFrame();
+      };
+
+      document.getElementById("playBtn").onclick = togglePlay;
+      document.getElementById("loopBtn").onclick = () => {
+        loop = !loop;
+        document.getElementById("loopBtn").textContent = loop ? "Loop: On" : "Loop: Off";
+        document.getElementById("loopBtn").classList.toggle("active", loop);
+      };
+
+      document.getElementById("fpsSlider").oninput = (e) => {
+        fps = parseInt(e.target.value);
+        fpsLabel.textContent = fps + " fps";
+        if (isPlaying) {
+          stopPlay();
+          startPlay();
+        }
+      };
+
+      document.getElementById("addFrameBtn").onclick = addFrame;
+      document.getElementById("deleteFrameBtn").onclick = deleteFrame;
+      document.getElementById("duplicateFrameBtn").onclick = duplicateFrame;
+
+      document.getElementById("saveBtn").onclick = saveProject;
+      document.getElementById("loadBtn").onclick = loadProject;
+    }
+
+    function createBlankFrameData() {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // ---- Save / Load (localStorage) ----
+    function saveProject() {
+      saveCurrentToFrame();
+      // Convert ImageData to arrays so we can store them
+      const data = frames.map(f => Array.from(f.data));
+      const project = {
+        width: CANVAS_W,
+        height: CANVAS_H,
+        frames: data
+      };
+      try {
+        localStorage.setItem("animationProject", JSON.stringify(project));
+        alert("Project saved! (in this browser)");
+      } catch (err) {
+        alert("Could not save (storage full or blocked). Try a smaller project.");
+      }
+    }
+
+    function loadProject() {
+      const raw = localStorage.getItem("animationProject");
+      if (!raw) {
+        alert("No saved project found.");
+        return;
+      }
+      try {
+        const project = JSON.parse(raw);
+        frames = project.frames.map(arr => {
+          const imgData = ctx.createImageData(project.width, project.height);
+          imgData.data.set(arr);
+          return imgData;
+        });
+        currentFrame = 0;
+        stopPlay();
+        updateUI();
+        drawCurrentFrame();
+        alert("Project loaded!");
+      } catch (err) {
+        alert("Failed to load project.");
+      }
+    }
+
+    // ---- Start the app ----
+    init();
+  </script>
+</body>
+</html>
